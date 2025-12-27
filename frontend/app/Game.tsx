@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
-import { GameSession, Question, generateQuiz, submitAnswer, endGameSession } from '@/services/api';
+import { generateQuiz, submitAnswer, endGameSession } from '@/services/api';
 import { CatWalk, CatIdle, CatHurt, CatDeath } from '@/components/animations';
 import { SettingsIcon } from '@/components/icons';
 import { GameStats, Obstacle, SettingsBoard, QuestionBox, OptionBox, EndGameBoard } from '@/src/components';
@@ -11,40 +11,65 @@ import { useBackgroundAnimation } from '@/src/hooks/useBackgroundAnimation';
 import { useObstacles } from '@/src/hooks/useObstacles';
 import { GAME_CONSTANTS } from '@/src/constants/game';
 import { Fonts } from '@/src/constants/fonts';
+import { useGameSessionStore, useGameUIStore, useQuizStore } from '@/src/store';
 
 export default function GameScreen() {
   const params = useLocalSearchParams<{ session: string }>();
   const router = useRouter();
 
-  // Parse session from params (passed as JSON string)
-  const [session, setSession] = useState<GameSession | null>(
-    params.session
-    ? JSON.parse(decodeURIComponent(params.session))
-      : null
-  );
+  // Zustand stores
+  const session = useGameSessionStore((state) => state.session);
+  const setSession = useGameSessionStore((state) => state.setSession);
+  const updateSession = useGameSessionStore((state) => state.updateSession);
+  
+  const isGameOver = useGameUIStore((state) => state.isGameOver);
+  const showDeathAnimation = useGameUIStore((state) => state.showDeathAnimation);
+  const showEndGameBoard = useGameUIStore((state) => state.showEndGameBoard);
+  const endGameTitle = useGameUIStore((state) => state.endGameTitle);
+  const isAttacking = useGameUIStore((state) => state.isAttacking);
+  const isHurt = useGameUIStore((state) => state.isHurt);
+  const showSettings = useGameUIStore((state) => state.showSettings);
+  const musicEnabled = useGameUIStore((state) => state.musicEnabled);
+  const soundEnabled = useGameUIStore((state) => state.soundEnabled);
+  const language = useGameUIStore((state) => state.language);
+  
+  const setIsGameOver = useGameUIStore((state) => state.setIsGameOver);
+  const setShowDeathAnimation = useGameUIStore((state) => state.setShowDeathAnimation);
+  const setShowEndGameBoard = useGameUIStore((state) => state.setShowEndGameBoard);
+  const setEndGameTitle = useGameUIStore((state) => state.setEndGameTitle);
+  const setIsAttacking = useGameUIStore((state) => state.setIsAttacking);
+  const setIsHurt = useGameUIStore((state) => state.setIsHurt);
+  const setShowSettings = useGameUIStore((state) => state.setShowSettings);
+  const setMusicEnabled = useGameUIStore((state) => state.setMusicEnabled);
+  const setSoundEnabled = useGameUIStore((state) => state.setSoundEnabled);
+  const setLanguage = useGameUIStore((state) => state.setLanguage);
+  
+  const currentQuestion = useQuizStore((state) => state.currentQuestion);
+  const isAnswering = useQuizStore((state) => state.isAnswering);
+  const questionGenerated = useQuizStore((state) => state.questionGenerated);
+  const lastQuestionObstacleId = useQuizStore((state) => state.lastQuestionObstacleId);
+  
+  const setCurrentQuestion = useQuizStore((state) => state.setCurrentQuestion);
+  const setIsAnswering = useQuizStore((state) => state.setIsAnswering);
+  const setQuestionGenerated = useQuizStore((state) => state.setQuestionGenerated);
+  const setLastQuestionObstacleId = useQuizStore((state) => state.setLastQuestionObstacleId);
 
-  // Game over state (declared early so it can be used in hooks)
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [showDeathAnimation, setShowDeathAnimation] = useState(false);
-  const [showEndGameBoard, setShowEndGameBoard] = useState(false);
+  // Initialize session from params
+  useEffect(() => {
+    if (params.session && !session) {
+      const parsedSession = JSON.parse(decodeURIComponent(params.session));
+      setSession(parsedSession);
+    }
+  }, [params.session, session, setSession]);
 
   const { obstacles, removeObstacle, handleCollision, hasCollision, collidedObstacleId, spawnedCount, maxQuestions, resetCollision } = useObstacles({ session, isGameOver });
   const backgroundAnimatedStyle = useBackgroundAnimation(hasCollision || isGameOver);
-
-  // Quiz state
-  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [isAnswering, setIsAnswering] = useState(false);
-  const questionGeneratedRef = useRef(false);
-
-  // Attack/Hurt sequence state (for incorrect answers)
-  const [isAttacking, setIsAttacking] = useState(false);
-  const [isHurt, setIsHurt] = useState(false);
 
   // Find the collided obstacle and get its frame image
   const collidedObstacle = collidedObstacleId 
     ? obstacles.find(obs => obs.id === collidedObstacleId)
     : null;
-
+  
   const getObstacleFrameImage = (type: string | undefined) => {
     switch (type) {
       case 'DogWalk':
@@ -64,16 +89,31 @@ export default function GameScreen() {
     ? getObstacleFrameImage(collidedObstacle.type)
     : null;
 
-  // Settings state
-  const [showSettings, setShowSettings] = useState(false);
-  const [musicEnabled, setMusicEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [language, setLanguage] = useState<'english' | 'vietnamese'>('english');
+  // Debug logging
+  useEffect(() => {
+    if (hasCollision) {
+      console.log('Collision state:', {
+        hasCollision,
+        collidedObstacleId,
+        collidedObstacle: collidedObstacle ? { id: collidedObstacle.id, type: collidedObstacle.type } : null,
+        obstacleFrameImage: obstacleFrameImage ? 'exists' : 'null',
+        currentQuestion: currentQuestion ? currentQuestion.question : 'null',
+        questionGenerated,
+      });
+    }
+  }, [hasCollision, collidedObstacleId, collidedObstacle, obstacleFrameImage, currentQuestion, questionGenerated]);
 
   // Generate quiz when collision happens (only if game is not over)
   useEffect(() => {
-    if (hasCollision && session && !questionGeneratedRef.current && !isGameOver) {
-      questionGeneratedRef.current = true;
+    // Reset if this is a new collision with a different obstacle
+    if (collidedObstacleId && collidedObstacleId !== lastQuestionObstacleId) {
+      setQuestionGenerated(false);
+      setLastQuestionObstacleId(collidedObstacleId);
+    }
+
+    if (hasCollision && session && !questionGenerated && !isGameOver && collidedObstacleId) {
+      setQuestionGenerated(true);
+      console.log('Generating quiz for collision with:', collidedObstacleId);
       generateQuiz({
         type: session.quizType,
         difficulty: session.difficulty,
@@ -81,25 +121,40 @@ export default function GameScreen() {
       })
         .then((response) => {
           if (response.questions && response.questions.length > 0) {
+            console.log('Quiz generated successfully:', response.questions[0].question);
             setCurrentQuestion(response.questions[0]);
+          } else {
+            console.error('No questions in response');
+            setQuestionGenerated(false); // Reset on error so we can retry
           }
         })
         .catch((error) => {
           console.error('Failed to generate quiz:', error);
+          setQuestionGenerated(false); // Reset on error so we can retry
         });
     }
-  }, [hasCollision, session, isGameOver]);
+  }, [hasCollision, session, isGameOver, collidedObstacleId, questionGenerated, lastQuestionObstacleId, setQuestionGenerated, setLastQuestionObstacleId, setCurrentQuestion]);
 
   // Reset question when collision is cleared
   useEffect(() => {
     if (!hasCollision) {
       setCurrentQuestion(null);
-      questionGeneratedRef.current = false;
+      setQuestionGenerated(false);
+      setLastQuestionObstacleId(null);
       setIsAnswering(false);
       setIsAttacking(false);
       setIsHurt(false);
     }
-  }, [hasCollision]);
+  }, [hasCollision, setCurrentQuestion, setQuestionGenerated, setLastQuestionObstacleId, setIsAnswering, setIsAttacking, setIsHurt]);
+
+  // Check win condition: all questions answered and health > 0
+  useEffect(() => {
+    if (session && session.questionsAnswered >= maxQuestions && session.health > 0 && !isGameOver && !showEndGameBoard) {
+      setIsGameOver(true);
+      setEndGameTitle('You Won');
+      setShowEndGameBoard(true);
+    }
+  }, [session?.questionsAnswered, session?.health, maxQuestions, isGameOver, showEndGameBoard]);
 
   // Handle answer selection
   const handleAnswerSelect = async (selectedAnswer: number) => {
@@ -123,6 +178,7 @@ export default function GameScreen() {
       if (response.session.health <= 0 && !isGameOver) {
         setIsGameOver(true);
         setShowDeathAnimation(true);
+        setEndGameTitle('Game Over');
         
         // After death animation plays once, show end game board
         // Assuming death animation is ~1-2 seconds, wait 2 seconds
@@ -131,6 +187,7 @@ export default function GameScreen() {
           setShowEndGameBoard(true);
         }, 2000);
       }
+      
 
       if (isCorrect) {
         // If correct, reset collision and let obstacle pass through
@@ -235,9 +292,11 @@ export default function GameScreen() {
           </>
         )}
 
-        {/* Cat animation - death if game over (stays in death state), hurt if hurt, idle if collision, walk otherwise */}
-        {isGameOver ? (
+        {/* Cat animation - death if game over and health <= 0, idle if game over and health > 0 (win), hurt if hurt, idle if collision, walk otherwise */}
+        {isGameOver && session && session.health <= 0 ? (
           <CatDeath width={220} height={220} fps={8} style={styles.cat} />
+        ) : isGameOver ? (
+          <CatIdle width={220} height={220} fps={8} style={styles.cat} />
         ) : isHurt ? (
           <CatHurt width={220} height={220} fps={8} style={styles.cat} />
         ) : hasCollision ? (
@@ -268,7 +327,7 @@ export default function GameScreen() {
             language={language}
             onMusicToggle={() => setMusicEnabled(!musicEnabled)}
             onSoundToggle={() => setSoundEnabled(!soundEnabled)}
-            onLanguageChange={setLanguage}
+            onLanguageChange={(lang) => setLanguage(lang)}
             onClose={() => setShowSettings(false)}
           />
         )}
@@ -277,15 +336,19 @@ export default function GameScreen() {
         {showEndGameBoard && session && (
           <EndGameBoard
             session={session}
+            title={endGameTitle}
             onClose={async () => {
               try {
                 // Call API to end the session
                 await endGameSession(session.id);
-                // Navigate back to home screen
-                router.back();
               } catch (error) {
                 console.error('Failed to end game session:', error);
-                // Navigate back even if API call fails
+              } finally {
+                // Reset all Zustand stores before navigating back
+                useGameSessionStore.getState().resetSession();
+                useGameUIStore.getState().resetGameUI();
+                useQuizStore.getState().resetQuiz();
+                // Navigate back to home screen
                 router.back();
               }
             }}
@@ -346,7 +409,7 @@ const styles = StyleSheet.create({
   questionBox: {
     position: 'absolute',
     top: 240,
-    right: 100,
+    right: 50,
     zIndex: 9,
   },
   obstacleFrame: {

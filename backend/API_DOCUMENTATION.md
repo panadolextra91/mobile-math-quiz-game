@@ -21,7 +21,7 @@ All responses follow this format:
 ## Quiz Endpoints
 
 ### Generate Quiz
-**POST** `/quiz/generate`
+**POST** `/api/quiz/generate`
 
 Generate a set of math questions.
 
@@ -34,6 +34,11 @@ Generate a set of math questions.
 }
 ```
 
+**Validation:**
+- `type`: Must be `"arithmetics"` or `"equations"`
+- `difficulty`: Must be `"easy"`, `"medium"`, or `"hard"`
+- `count`: Integer between 1 and 100 (default: 20)
+
 **Response:**
 ```json
 {
@@ -44,13 +49,12 @@ Generate a set of math questions.
         "id": "uuid",
         "type": "arithmetics",
         "difficulty": "easy",
-        "question": "5 + 3 = ?",
-        "correctAnswer": 8,
-        "options": [6, 7, 8, 9],
-        "explanation": "5 plus 3 equals 8",
+        "question": "3 ÷ 3 - 8 = ?",
+        "correctAnswer": -7,
+        "options": [-7, -8, -9, -4],
         "metadata": {
-          "operation": "+",
-          "operands": [5, 3]
+          "operation": "mixed",
+          "operands": [1, 8]
         }
       }
     ],
@@ -61,10 +65,12 @@ Generate a set of math questions.
 }
 ```
 
+**Note**: Questions no longer include an `explanation` field. The `metadata` field contains operation type and operands for internal use.
+
 ## Game Endpoints
 
 ### Create Game Session
-**POST** `/game/session`
+**POST** `/api/game/session`
 
 Create a new game session.
 
@@ -76,6 +82,11 @@ Create a new game session.
   "difficulty": "easy" | "medium" | "hard"
 }
 ```
+
+**Validation:**
+- `playerName`: String, 1-50 characters
+- `quizType`: Must be `"arithmetics"` or `"equations"`
+- `difficulty`: Must be `"easy"`, `"medium"`, or `"hard"`
 
 **Response:**
 ```json
@@ -100,7 +111,7 @@ Create a new game session.
 ```
 
 ### Get Game Session
-**GET** `/game/session/:sessionId`
+**GET** `/api/game/session/:sessionId`
 
 Get current game session state.
 
@@ -115,7 +126,7 @@ Get current game session state.
 ```
 
 ### Submit Answer
-**POST** `/game/answer`
+**POST** `/api/game/answer`
 
 Submit an answer to a question.
 
@@ -129,22 +140,48 @@ Submit an answer to a question.
 }
 ```
 
+**Validation:**
+- `sessionId`: Must be a valid UUID
+- `questionId`: Must be a valid UUID
+- `answer`: Must be a number
+- `isCorrect`: Must be a boolean
+
 **Response:**
 ```json
 {
   "success": true,
   "data": {
     "session": {
-      // Updated session object
+      "id": "session-uuid",
+      "playerName": "John Doe",
+      "quizType": "arithmetics",
+      "difficulty": "easy",
+      "currentQuestionIndex": 1,
+      "score": 10,
+      "streak": 1,
+      "health": 3,
+      "maxHealth": 3,
+      "boosts": [],
+      "questionsAnswered": 1,
+      "questionsCorrect": 1,
+      "startTime": "2024-01-01T00:00:00.000Z"
     },
     "earnedBoost": false,  // true if streak reached 3
-    "gameOver": false      // true if health reached 0
+    "gameOver": false      // true if health reached 0 or max questions answered
   }
 }
 ```
 
+**Note**: 
+- When `gameOver` is `true`, the leaderboard and player stats are automatically updated
+- `gameOver` is `true` when health reaches 0 OR when max questions are answered
+- Points are calculated based on difficulty and streak (see Game Mechanics section)
+- Double points boost is automatically consumed after one correct answer
+- Shield boost protects against one wrong answer (doesn't lose health, but boost is consumed)
+- Boost is earned when streak reaches 3 (and every 3 after that)
+
 ### Apply Boost
-**POST** `/game/boost`
+**POST** `/api/game/boost`
 
 Apply a boost after earning it (3 consecutive correct answers).
 
@@ -155,6 +192,10 @@ Apply a boost after earning it (3 consecutive correct answers).
   "boostType": "erase_obstacle" | "double_points" | "shield"
 }
 ```
+
+**Validation:**
+- `sessionId`: Must be a valid UUID
+- `boostType`: Must be `"erase_obstacle"`, `"double_points"`, or `"shield"`
 
 **Response:**
 ```json
@@ -167,7 +208,7 @@ Apply a boost after earning it (3 consecutive correct answers).
 ```
 
 ### Use Erase Obstacle Boost
-**POST** `/game/boost/erase`
+**POST** `/api/game/boost/erase`
 
 Use the erase obstacle boost to remove an obstacle.
 
@@ -177,6 +218,11 @@ Use the erase obstacle boost to remove an obstacle.
   "sessionId": "session-uuid"
 }
 ```
+
+**Validation:**
+- `sessionId`: Must be a valid UUID
+
+**Note**: This endpoint removes the `erase_obstacle` boost from the session. The boost must exist in the session's boosts array.
 
 **Response:**
 ```json
@@ -189,7 +235,7 @@ Use the erase obstacle boost to remove an obstacle.
 ```
 
 ### End Game Session
-**POST** `/game/session/:sessionId/end`
+**POST** `/api/game/session/:sessionId/end`
 
 Manually end a game session (updates leaderboard and stats).
 
@@ -206,7 +252,7 @@ Manually end a game session (updates leaderboard and stats).
 ## Leaderboard Endpoints
 
 ### Get Leaderboard
-**GET** `/leaderboard`
+**GET** `/api/leaderboard`
 
 Get leaderboard entries with optional filters.
 
@@ -218,8 +264,14 @@ Get leaderboard entries with optional filters.
 
 **Example:**
 ```
-GET /leaderboard?limit=50&quizType=arithmetics&difficulty=easy&timeframe=daily
+GET /api/leaderboard?limit=50&quizType=arithmetics&difficulty=easy&timeframe=daily
 ```
+
+**Validation:**
+- `limit`: Integer between 1 and 1000 (default: 100)
+- `quizType`: Optional, must be `"arithmetics"` or `"equations"`
+- `difficulty`: Optional, must be `"easy"`, `"medium"`, or `"hard"`
+- `timeframe`: Optional, must be `"daily"`, `"weekly"`, or `"all-time"` (default: `"all-time"`)
 
 **Response:**
 ```json
@@ -241,7 +293,7 @@ GET /leaderboard?limit=50&quizType=arithmetics&difficulty=easy&timeframe=daily
 ```
 
 ### Get Player Best Score
-**GET** `/leaderboard/player/:playerName`
+**GET** `/api/leaderboard/player/:playerName`
 
 Get a player's best score.
 
@@ -256,20 +308,20 @@ Get a player's best score.
 ```
 
 ### Get Player Rank
-**GET** `/leaderboard/player/:playerName/rank`
+**GET** `/api/leaderboard/player/:playerName/rank`
 
 Get a player's rank in the leaderboard.
 
 **Query Parameters:**
-- `quizType` (optional): Filter by quiz type
-- `difficulty` (optional): Filter by difficulty
+- `quizType` (optional): Filter by quiz type (`"arithmetics"` or `"equations"`)
+- `difficulty` (optional): Filter by difficulty (`"easy"`, `"medium"`, or `"hard"`)
 
 **Response:**
 ```json
 {
   "success": true,
   "data": {
-    "rank": 5  // or null if not found
+    "rank": 5  // or null if player not found in leaderboard
   }
 }
 ```
@@ -277,7 +329,7 @@ Get a player's rank in the leaderboard.
 ## Stats Endpoints
 
 ### Get Player Statistics
-**GET** `/stats/player/:playerName`
+**GET** `/api/stats/player/:playerName`
 
 Get comprehensive player statistics.
 
@@ -337,7 +389,7 @@ Get comprehensive player statistics.
 ## Health Check
 
 ### Health Check
-**GET** `/health`
+**GET** `/api/health`
 
 Check server status.
 
@@ -406,11 +458,43 @@ Check server status.
 - **Persistence**: All data (sessions, leaderboards, stats) persists across server restarts
 - **Session Cleanup**: Old game sessions (older than 1 hour) are automatically cleaned up
 
+## Game Mechanics
+
+### Maximum Questions per Difficulty
+- **Easy**: 10 questions
+- **Medium**: 15 questions
+- **Hard**: 20 questions
+
+### Points Calculation
+Points are calculated based on:
+- **Base Points**:
+  - Easy: 10 points per correct answer
+  - Medium: 20 points per correct answer
+  - Hard: 30 points per correct answer
+- **Streak Multiplier**: `1 + (streak × 0.1)`, capped at 2x (max 20 streak)
+- **Double Points Boost**: 2x multiplier (stacks with streak)
+- **Final Formula**: `floor(basePoints × streakMultiplier × doublePointsMultiplier)`
+
+**Examples**:
+- Easy, streak 1: `floor(10 × 1.1 × 1) = 11 points`
+- Medium, streak 5: `floor(20 × 1.5 × 1) = 30 points`
+- Hard, streak 3 with double points: `floor(30 × 1.3 × 2) = 78 points`
+
+### Health System
+- **Starting Health**: 3
+- **Lose Health**: When answering incorrectly (unless shield is active)
+- **Game Over**: When health reaches 0 OR max questions answered
+
+### Streak System
+- **Increment**: +1 for each correct answer
+- **Reset**: Set to 0 on incorrect answer (unless shield is active)
+- **Boost Earned**: Every 3 consecutive correct answers (streak 3, 6, 9, etc.)
+
 ## Boost Types
 
-- `erase_obstacle`: Remove one obstacle from the maze
-- `double_points`: Next correct answer gives double points
-- `shield`: Protect against one wrong answer (doesn't lose health)
+- `erase_obstacle`: Remove one obstacle from the maze (consumed on use)
+- `double_points`: Next correct answer gives double points (consumed after use)
+- `shield`: Protect against one wrong answer (doesn't lose health, consumed after use)
 
 ## Setup & Configuration
 

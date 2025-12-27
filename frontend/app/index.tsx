@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BackgroundImage, TextButton, CatIdle, SettingsIcon, SettingsBoard, NameBoard } from '@/components/index';
 import { usePlayerName } from '@/src/hooks/usePlayerName';
+import { useGameSessionStore, useGameUIStore, useQuizStore } from '@/src/store';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -50,6 +51,10 @@ export default function HomeScreen() {
           onClose={() => setShowNameBoard(false)}
           onSubmit={(session) => {
             setShowNameBoard(false);
+            // Reset all Zustand stores before starting a new game
+            useGameSessionStore.getState().resetSession();
+            useGameUIStore.getState().resetGameUI();
+            useQuizStore.getState().resetQuiz();
             // Navigate to game screen with session data
             router.push({
               pathname: '/Game',

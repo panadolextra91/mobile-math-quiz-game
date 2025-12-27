@@ -45,9 +45,11 @@ export function QuestionBox({ style, text }: QuestionBoxProps) {
         />
         {/* Text content */}
         {text && (
-          <Text style={styles.text}>
-            {text}
-          </Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.text}>
+              {text}
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -58,11 +60,18 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   box: {
-    width: 330,
-    height: 120,
+    width: 380,
+    minHeight: 120,
+    maxHeight: 280,
     position: 'relative',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'visible',
   },
   innerHighlight: {
     position: 'absolute',
@@ -78,17 +87,21 @@ const styles = StyleSheet.create({
     right: 0,
     height: 5,
   },
+  textContainer: {
+    width: '85%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 100,
+    //backgroundColor: 'red',
+    marginRight: 75,
+    //paddingRight: 50,
+  },
   text: {
     fontFamily: Fonts.jersey10,
     color: '#000000',
-    fontSize: 40,
+    fontSize: 34,
     textAlign: 'center',
-    position: 'absolute',
-    top: 35,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    textAlignVertical: 'center',
+    width: '100%',
   }
 });
 
