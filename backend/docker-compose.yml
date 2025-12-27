@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: math_maze_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: math_maze
+      POSTGRES_PASSWORD: math_maze_password
+      POSTGRES_DB: math_maze
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U math_maze"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+

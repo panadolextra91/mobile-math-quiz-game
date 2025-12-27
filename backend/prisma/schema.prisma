@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuizType {
+  arithmetics
+  equations
+}
+
+enum DifficultyLevel {
+  easy
+  medium
+  hard
+}
+
+enum BoostType {
+  erase_obstacle
+  double_points
+  shield
+}
+
+model GameSession {
+  id                   String       @id @default(uuid())
+  playerName           String
+  quizType             QuizType
+  difficulty           DifficultyLevel
+  currentQuestionIndex Int          @default(0)
+  score                Int          @default(0)
+  streak               Int          @default(0)
+  health               Int          @default(3)
+  maxHealth            Int          @default(3)
+  questionsAnswered    Int          @default(0)
+  questionsCorrect     Int          @default(0)
+  startTime            DateTime     @default(now())
+  endTime              DateTime?
+  boosts               BoostType[]
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([playerName])
+  @@index([startTime])
+  @@map("game_sessions")
+}
+
+model LeaderboardEntry {
+  id                String          @id @default(uuid())
+  playerName        String
+  score             Int
+  questionsCorrect  Int
+  questionsAnswered Int
+  accuracy          Float
+  quizType          QuizType
+  difficulty        DifficultyLevel
+  completedAt       DateTime        @default(now())
+  createdAt         DateTime        @default(now())
+
+  @@index([playerName])
+  @@index([score])
+  @@index([quizType, difficulty, score])
+  @@index([completedAt])
+  @@map("leaderboard_entries")
+}
+
+model PlayerStat {
+  id                    String   @id @default(uuid())
+  playerName            String   @unique
+  totalGames            Int      @default(0)
+  totalQuestionsAnswered Int    @default(0)
+  totalQuestionsCorrect Int     @default(0)
+  overallAccuracy       Float    @default(0)
+  bestScore             Int      @default(0)
+  longestStreak         Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  achievements          Achievement[]
+  quizTypeStats         QuizTypeStat[]
+  difficultyStats       DifficultyStat[]
+
+  @@map("player_stats")
+}
+
+model Achievement {
+  id          String      @id @default(uuid())
+  playerStatId String
+  achievementId String    // e.g., "first_game", "perfect_game"
+  name        String
+  description String
+  unlockedAt  DateTime   @default(now())
+
+  playerStat PlayerStat  @relation(fields: [playerStatId], references: [id], onDelete: Cascade)
+
+  @@index([playerStatId])
+  @@map("achievements")
+}
+
+model QuizTypeStat {
+  id          String      @id @default(uuid())
+  playerStatId String
+  quizType    QuizType
+  games       Int         @default(0)
+  accuracy    Float       @default(0)
+  bestScore   Int         @default(0)
+
+  playerStat PlayerStat  @relation(fields: [playerStatId], references: [id], onDelete: Cascade)
+
+  @@unique([playerStatId, quizType])
+  @@index([playerStatId])
+  @@map("quiz_type_stats")
+}
+
+model DifficultyStat {
+  id          String          @id @default(uuid())
+  playerStatId String
+  difficulty  DifficultyLevel
+  games       Int             @default(0)
+  accuracy    Float           @default(0)
+  bestScore   Int             @default(0)
+
+  playerStat PlayerStat      @relation(fields: [playerStatId], references: [id], onDelete: Cascade)
+
+  @@unique([playerStatId, difficulty])
+  @@index([playerStatId])
+  @@map("difficulty_stats")
+}
+
