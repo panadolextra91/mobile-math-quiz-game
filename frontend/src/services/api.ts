@@ -242,6 +242,7 @@ export interface GetLeaderboardParams {
   quizType?: 'arithmetics' | 'equations';
   difficulty?: 'easy' | 'medium' | 'hard';
   timeframe?: 'daily' | 'weekly' | 'all-time';
+  unique?: boolean; // If true, show only best score per player
 }
 
 /**
@@ -263,6 +264,9 @@ export async function getLeaderboard(
   }
   if (params.timeframe) {
     queryParams.append('timeframe', params.timeframe);
+  }
+  if (params.unique !== undefined) {
+    queryParams.append('unique', params.unique ? 'true' : 'false');
   }
 
   const url = `${API_BASE_URL}/leaderboard${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;

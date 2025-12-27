@@ -49,7 +49,8 @@ class LeaderboardService {
     limit: number = 100,
     quizType?: QuizType,
     difficulty?: DifficultyLevel,
-    timeframe?: 'daily' | 'weekly' | 'all-time'
+    timeframe?: 'daily' | 'weekly' | 'all-time',
+    unique: boolean = false
   ): Promise<LeaderboardEntry[]> {
     const where: any = {};
 
@@ -79,13 +80,44 @@ class LeaderboardService {
       };
     }
 
-    const entries = await prisma.leaderboardEntry.findMany({
-      where,
-      orderBy: { score: 'desc' },
-      take: limit,
-    });
+    if (unique) {
+      // Group by playerName and get only the best score for each player
+      // Fetch more entries to ensure we have enough after grouping
+      const allEntries = await prisma.leaderboardEntry.findMany({
+        where,
+        orderBy: { score: 'desc' },
+        take: limit * 10, // Fetch more to account for duplicates
+      });
 
-    return entries.map(this.mapToLeaderboardEntry);
+      // Group by playerName and keep only the best score for each player
+      const playerMap = new Map<string, LeaderboardEntry>();
+      
+      for (const entry of allEntries) {
+        const mapped = this.mapToLeaderboardEntry(entry);
+        const existing = playerMap.get(mapped.playerName);
+        
+        // Keep only the entry with the highest score for each player
+        if (!existing || mapped.score > existing.score) {
+          playerMap.set(mapped.playerName, mapped);
+        }
+      }
+
+      // Convert map to array, sort by score descending, and limit
+      const uniqueEntries = Array.from(playerMap.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+
+      return uniqueEntries;
+    } else {
+      // Original behavior: return all entries
+      const entries = await prisma.leaderboardEntry.findMany({
+        where,
+        orderBy: { score: 'desc' },
+        take: limit,
+      });
+
+      return entries.map(this.mapToLeaderboardEntry);
+    }
   }
 
   /**

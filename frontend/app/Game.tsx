@@ -1,12 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated from 'react-native-reanimated';
-import { generateQuiz, submitAnswer, endGameSession } from '@/services/api';
+import { generateQuiz, submitAnswer, endGameSession, applyBoost, useEraseObstacle } from '@/services/api';
 import { CatWalk, CatIdle, CatHurt, CatDeath } from '@/components/animations';
-import { SettingsIcon } from '@/components/icons';
-import { GameStats, Obstacle, SettingsBoard, QuestionBox, OptionBox, EndGameBoard } from '@/src/components';
+import { SettingsIcon, HomeIcon, CoinIcon } from '@/components/icons';
+import { GameStats, Obstacle, SettingsBoard, QuestionBox, OptionBox, EndGameBoard, BoostSelection } from '@/src/components';
 import { useBackgroundAnimation } from '@/src/hooks/useBackgroundAnimation';
 import { useObstacles } from '@/src/hooks/useObstacles';
 import { GAME_CONSTANTS } from '@/src/constants/game';
@@ -53,6 +53,10 @@ export default function GameScreen() {
   const setIsAnswering = useQuizStore((state) => state.setIsAnswering);
   const setQuestionGenerated = useQuizStore((state) => state.setQuestionGenerated);
   const setLastQuestionObstacleId = useQuizStore((state) => state.setLastQuestionObstacleId);
+
+  // Boost selection state
+  const [showBoostSelection, setShowBoostSelection] = useState(false);
+  const [pendingBoostEarned, setPendingBoostEarned] = useState(false);
 
   // Initialize session from params
   useEffect(() => {
@@ -174,6 +178,16 @@ export default function GameScreen() {
       // Update session with new score and state
       setSession(response.session);
 
+      // Check if shield was used (health didn't decrease but answer was wrong)
+      const shieldWasUsed = !isCorrect && response.session.health === session.health;
+
+      // Check if a boost was earned (only show if we don't already have a pending boost)
+      // Don't show if shield was used (shield keeps streak, so earnedBoost might be true again)
+      if (response.earnedBoost && !pendingBoostEarned && !shieldWasUsed) {
+        setPendingBoostEarned(true);
+        setShowBoostSelection(true);
+      }
+
       // Check if health reached 0 (game over)
       if (response.session.health <= 0 && !isGameOver) {
         setIsGameOver(true);
@@ -194,6 +208,12 @@ export default function GameScreen() {
         // Reset immediately so both sprites go back to walking
         resetCollision();
         
+        // Reset pending boost flag on correct answer to allow new boosts
+        // (but only if we're not currently showing the boost modal)
+        if (!showBoostSelection) {
+          setPendingBoostEarned(false);
+        }
+        
         if (collidedObstacleId) {
           // Remove the obstacle after it passes through the screen
           // Give it enough time to slide past the player
@@ -202,32 +222,88 @@ export default function GameScreen() {
           }, GAME_CONSTANTS.OBSTACLE_SPEED);
         }
       } else {
-        // If incorrect, trigger attack sequence: attack -> wait 1s -> hurt -> then pass through
-        setIsAttacking(true);
-        
-        // After 1 second, show hurt animation
-        setTimeout(() => {
-          setIsAttacking(false);
-          setIsHurt(true);
+        if (shieldWasUsed) {
+          // Shield protected the player, no attack animation needed
+          // Just reset collision and let obstacle pass through
+          resetCollision();
           
-          // After hurt animation, reset collision and let obstacle pass through
+          if (collidedObstacleId) {
+            setTimeout(() => {
+              removeObstacle(collidedObstacleId);
+            }, GAME_CONSTANTS.OBSTACLE_SPEED);
+          }
+          
+          // Keep pendingBoostEarned true if earnedBoost is true (prevent showing modal again)
+          // because the player already had the chance to select a boost at this streak level
+          if (response.earnedBoost) {
+            setPendingBoostEarned(true);
+          }
+        } else {
+          // If incorrect and no shield, trigger attack sequence: attack -> wait 1s -> hurt -> then pass through
+          setIsAttacking(true);
+          
+          // After 1 second, show hurt animation
           setTimeout(() => {
-            setIsHurt(false);
-            resetCollision();
+            setIsAttacking(false);
+            setIsHurt(true);
             
-            if (collidedObstacleId) {
-              // Remove the obstacle after it passes through the screen
-              setTimeout(() => {
-                removeObstacle(collidedObstacleId);
-              }, GAME_CONSTANTS.OBSTACLE_SPEED);
-            }
-          }, 500); // Show hurt for 0.5 seconds
-        }, 1000); // Attack for 1 second
-        
+            // After hurt animation, reset collision and let obstacle pass through
+            setTimeout(() => {
+              setIsHurt(false);
+              resetCollision();
+              
+              if (collidedObstacleId) {
+                // Remove the obstacle after it passes through the screen
+                setTimeout(() => {
+                  removeObstacle(collidedObstacleId);
+                }, GAME_CONSTANTS.OBSTACLE_SPEED);
+              }
+            }, 500); // Show hurt for 0.5 seconds
+          }, 1000); // Attack for 1 second
+        }
       }
+      
+      // Reset answering state after handling the answer
+      setIsAnswering(false);
     } catch (error) {
       console.error('Failed to submit answer:', error);
       setIsAnswering(false);
+    }
+  };
+
+  // Handle boost selection
+  const handleBoostSelect = async (boostType: 'erase_obstacle' | 'double_points' | 'shield') => {
+    if (!session) return;
+
+    try {
+      if (boostType === 'erase_obstacle') {
+        // Use erase obstacle boost - this removes the obstacle and the boost
+        const updatedSession = await useEraseObstacle(session.id);
+        setSession(updatedSession);
+        setShowBoostSelection(false);
+        setPendingBoostEarned(false);
+        
+        // Remove the current obstacle immediately
+        if (collidedObstacleId) {
+          removeObstacle(collidedObstacleId);
+        }
+        
+        // Clear the current question and reset collision
+        setCurrentQuestion(null);
+        resetCollision();
+        setQuestionGenerated(false);
+      } else {
+        // Apply other boosts (double_points, shield)
+        const updatedSession = await applyBoost({
+          sessionId: session.id,
+          boostType,
+        });
+        setSession(updatedSession);
+        setShowBoostSelection(false);
+        setPendingBoostEarned(false);
+      }
+    } catch (error) {
+      console.error('Failed to apply boost:', error);
     }
   };
 
@@ -261,13 +337,43 @@ export default function GameScreen() {
           <SettingsIcon size={32} color="#fff" />
         </TouchableOpacity>
 
+        {/* Home button - top right corner, next to settings */}
+        <TouchableOpacity
+          style={styles.homeButton}
+          onPress={async () => {
+            if (session) {
+              try {
+                // End the current session
+                await endGameSession(session.id);
+              } catch (error) {
+                console.error('Failed to end game session:', error);
+              } finally {
+                // Reset all Zustand stores before navigating back
+                useGameSessionStore.getState().resetSession();
+                useGameUIStore.getState().resetGameUI();
+                useQuizStore.getState().resetQuiz();
+                // Navigate back to home screen
+                router.push('/');
+              }
+            } else {
+              // If no session, just navigate back
+              router.push('/');
+            }
+          }}
+        >
+          <HomeIcon size={32} color="#fff" />
+        </TouchableOpacity>
+
         {/* Top left corner - player stats */}
         <GameStats session={session} />
 
-        {/* Player score */}
-        <Text style={styles.scoreText}>
-          {session?.score ?? 0}
-        </Text>
+        {/* Player score with coin icon */}
+        <View style={styles.scoreContainer}>
+          <CoinIcon size={40} />
+          <Text style={styles.scoreText}>
+            {session?.score ?? 0}
+          </Text>
+        </View>
 
         {/* Question box and obstacle frame - shown when both sprites are idle (collision occurred) */}
         {hasCollision && obstacleFrameImage && currentQuestion && (
@@ -318,6 +424,14 @@ export default function GameScreen() {
             isGameOver={isGameOver}
           />
         ))}
+
+        {/* Boost Selection Modal */}
+        {showBoostSelection && (
+          <BoostSelection
+            onSelect={handleBoostSelect}
+            onClose={() => setShowBoostSelection(false)}
+          />
+        )}
 
         {/* Settings Board */}
         {showSettings && (
@@ -388,6 +502,13 @@ const styles = StyleSheet.create({
   settingsButton: {
     position: 'absolute',
     top: 50,
+    right: 70,
+    zIndex: 10,
+    padding: 8,
+  },
+  homeButton: {
+    position: 'absolute',
+    top: 50,
     right: 20,
     zIndex: 10,
     padding: 8,
@@ -397,14 +518,19 @@ const styles = StyleSheet.create({
     bottom: 25,
     left: 20,
   },
-  scoreText: {
-    fontFamily: Fonts.jersey10,
+  scoreContainer: {
     position: 'absolute',
     top: 160,
     left: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 10,
+  },
+  scoreText: {
+    fontFamily: Fonts.jersey10,
     color: '#fff',
     fontSize: 50,
-    zIndex: 10,
   },
   questionBox: {
     position: 'absolute',
@@ -430,6 +556,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
     gap: 10,
-    marginTop: 30,
+    marginTop: 40,
   },
 });

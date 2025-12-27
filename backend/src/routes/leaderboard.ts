@@ -10,18 +10,20 @@ const getLeaderboardSchema = z.object({
   quizType: z.nativeEnum(QuizType).optional(),
   difficulty: z.nativeEnum(DifficultyLevel).optional(),
   timeframe: z.enum(['daily', 'weekly', 'all-time']).optional().default('all-time'),
+  unique: z.boolean().optional().default(false),
 });
 
 router.get('/', async (req, res, next) => {
   try {
-    const { limit, quizType, difficulty, timeframe } = getLeaderboardSchema.parse({
+    const { limit, quizType, difficulty, timeframe, unique } = getLeaderboardSchema.parse({
       limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
       quizType: req.query.quizType,
       difficulty: req.query.difficulty,
       timeframe: req.query.timeframe,
+      unique: req.query.unique === 'true' || req.query.unique === '1',
     });
     
-    const leaderboard = await leaderboardService.getLeaderboard(limit, quizType, difficulty, timeframe);
+    const leaderboard = await leaderboardService.getLeaderboard(limit, quizType, difficulty, timeframe, unique);
     
     res.json({
       success: true,

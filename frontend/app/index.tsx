@@ -32,7 +32,8 @@ export default function HomeScreen() {
       </TouchableOpacity>
       <View style={styles.buttonsContainer}>
         <TextButton title="Start" onPress={() => setShowNameBoard(true)} />
-        <TextButton title="Leaderboard" onPress={() => console.log('Leaderboard pressed')} />
+        <TextButton title="Leaderboard" onPress={() => router.push('/Leaderboard')} />
+        <TextButton title="My Statistics" onPress={() => router.push('/PersonaStats')} />
         <CatIdle width={200} height={200} style={styles.cat} />
       </View>
       {showSettings && (
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 20,
+    gap: 0,
   },
   settingsButton: {
     position: 'absolute',

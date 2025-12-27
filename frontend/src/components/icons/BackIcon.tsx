@@ -1,0 +1,19 @@
+import React from 'react';
+import Svg, { Path } from 'react-native-svg';
+
+interface BackIconProps {
+  size?: number;
+  color?: string;
+}
+
+export function BackIcon({ size = 24, color = '#fff' }: BackIconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M23 11V13H5V14H6V15H7V16H8V17H9V18H10V19H11V20H12V21H13V22H12V23H11V22H10V21H9V20H8V19H7V18H6V17H5V16H4V15H3V14H2V13H1V11H2V10H3V9H4V8H5V7H6V6H7V5H8V4H9V3H10V2H11V1H12V2H13V3H12V4H11V5H10V6H9V7H8V8H7V9H6V10H5V11H23Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
