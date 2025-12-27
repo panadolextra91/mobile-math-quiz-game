@@ -6,9 +6,10 @@ import { CloseIcon } from '@/components/icons';
 interface EndGameBoardProps {
   session: GameSession;
   onClose?: () => void;
+  title?: string;
 }
 
-export function EndGameBoard({ session, onClose }: EndGameBoardProps) {
+export function EndGameBoard({ session, onClose, title = 'Game Over' }: EndGameBoardProps) {
   const incorrectQuestions = session.questionsAnswered - session.questionsCorrect;
 
   return (
@@ -26,7 +27,7 @@ export function EndGameBoard({ session, onClose }: EndGameBoardProps) {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.title}>Game Over</Text>
+        <Text style={styles.title}>{title}</Text>
 
         {/* Score - centered and biggest */}
         <View style={styles.scoreContainer}>

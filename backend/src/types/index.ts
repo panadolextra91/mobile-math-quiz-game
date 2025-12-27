@@ -16,7 +16,6 @@ export interface Question {
   question: string;
   correctAnswer: number;
   options: number[];
-  explanation?: string;
   metadata?: {
     operation?: string;
     operands?: number[];

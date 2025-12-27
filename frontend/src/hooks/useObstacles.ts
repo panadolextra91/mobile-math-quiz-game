@@ -23,9 +23,10 @@ export function useObstacles({ session, isGameOver = false }: UseObstaclesProps)
   const spawnObstacle = useCallback(() => {
     if (isGameOver) return; // Don't spawn new obstacles if game is over
     if (hasCollision) return; // Don't spawn new obstacles if collision occurred
-    if (spawnedCount.current >= maxQuestions) {
-      console.log(`Reached max questions (${maxQuestions}) for difficulty: ${session?.difficulty}`);
-      return; // Don't spawn more obstacles than max questions
+    // Check if we've answered enough questions, not how many obstacles spawned
+    if (session && session.questionsAnswered >= maxQuestions) {
+      console.log(`Reached max questions (${maxQuestions}) for difficulty: ${session.difficulty}`);
+      return; // Don't spawn more obstacles if we've answered max questions
     }
 
     const randomType =
@@ -40,7 +41,7 @@ export function useObstacles({ session, isGameOver = false }: UseObstaclesProps)
 
     spawnedCount.current++;
     setObstacles((prev) => [...prev, newObstacle]);
-  }, [hasCollision, maxQuestions, session?.difficulty, isGameOver]);
+  }, [hasCollision, maxQuestions, session, isGameOver]);
 
   const removeObstacle = useCallback((id: string) => {
     setObstacles((prev) => prev.filter((obs) => obs.id !== id));
@@ -60,12 +61,13 @@ export function useObstacles({ session, isGameOver = false }: UseObstaclesProps)
     // Keep collidedObstacleId so we can track which obstacle to remove
   }, []);
 
-  // Continuous obstacle spawning until max is reached
+  // Continuous obstacle spawning until max questions answered
   useEffect(() => {
     if (isGameOver) return; // Don't spawn new obstacles if game is over
     if (hasCollision) return; // Don't spawn new obstacles if collision occurred
-    if (spawnedCount.current >= maxQuestions) return; // Don't spawn if we've reached max
     if (!session) return; // Don't spawn if no session
+    // Check if we've answered enough questions
+    if (session.questionsAnswered >= maxQuestions) return; // Don't spawn if we've answered max questions
 
     // Spawn first obstacle after initial delay
     const initialTimer = setTimeout(() => {
@@ -74,7 +76,7 @@ export function useObstacles({ session, isGameOver = false }: UseObstaclesProps)
 
     // Then spawn obstacles continuously with interval
     const spawnInterval = setInterval(() => {
-      if (spawnedCount.current >= maxQuestions || hasCollision || isGameOver) {
+      if (session.questionsAnswered >= maxQuestions || hasCollision || isGameOver) {
         clearInterval(spawnInterval);
         return;
       }
