@@ -40,7 +40,21 @@ export function SpriteAnimation({
     const frameDuration = 1000 / fps; // Duration of each frame in milliseconds
 
     animationRef.current = setInterval(() => {
-      frameIndex.value = (frameIndex.value + 1) % frameCount;
+      if (loop) {
+        // Loop animation: wrap around
+        frameIndex.value = (frameIndex.value + 1) % frameCount;
+      } else {
+        // Non-looping animation: stop at last frame
+        if (frameIndex.value < frameCount - 1) {
+          frameIndex.value = frameIndex.value + 1;
+        } else {
+          // Reached last frame, stop animation
+          if (animationRef.current) {
+            clearInterval(animationRef.current);
+            animationRef.current = null;
+          }
+        }
+      }
     }, frameDuration);
 
     return () => {
@@ -48,7 +62,7 @@ export function SpriteAnimation({
         clearInterval(animationRef.current);
       }
     };
-  }, [autoPlay, fps, frameCount, frameIndex]);
+  }, [autoPlay, fps, frameCount, frameIndex, loop]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const currentFrame = Math.floor(frameIndex.value) % frameCount;
