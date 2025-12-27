@@ -33,7 +33,7 @@ export function SettingsBoard({
         {/* Close Button */}
         {onClose && (
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <CloseIcon size={40} color="#2C3E50" />
+            <CloseIcon size={40} color="#000000" />
           </TouchableOpacity>
         )}
 
@@ -42,7 +42,7 @@ export function SettingsBoard({
         {/* Music Toggle */}
         <View style={styles.settingRow}>
           <View style={styles.settingLabelContainer}>
-            <MusicIcon size={32} color="#2C3E50" />
+            <MusicIcon size={32} color="#000000" />
             <Text style={styles.settingLabel}>Music</Text>
           </View>
           <Button
@@ -61,7 +61,7 @@ export function SettingsBoard({
         {/* Sound Toggle */}
         <View style={styles.settingRow}>
           <View style={styles.settingLabelContainer}>
-            <SoundIcon size={32} color="#2C3E50" />
+            <SoundIcon size={32} color="#000000" />
             <Text style={styles.settingLabel}>Sound</Text>
           </View>
           <Button
@@ -80,7 +80,7 @@ export function SettingsBoard({
         {/* Language Selection */}
         <View style={styles.settingRow}>
           <View style={styles.settingLabelContainer}>
-            <LanguageIcon size={32} color="#2C3E50" />
+            <LanguageIcon size={32} color="#000000" />
             <Text style={styles.settingLabel}>Language</Text>
           </View>
           <View style={styles.languageButtons}>
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.jersey10,
     fontSize: 55,
-    color: '#2C3E50',
+    color: '#000000',
     marginBottom: 30,
     textAlign: 'center',
     paddingTop: 50,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontFamily: Fonts.jersey10,
     fontSize: 40,
-    color: '#2C3E50', // Dark text on light yellow background
+    color: '#000000', // Dark text on light yellow background
   },
   languageButtons: {
     flexDirection: 'row',

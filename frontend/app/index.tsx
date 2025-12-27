@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BackgroundImage, TextButton, CatIdle, SettingsIcon, SettingsBoard, NameBoard } from '@/components/index';
-import { GameSession } from '@/services/api';
 import { usePlayerName } from '@/src/hooks/usePlayerName';
 
 export default function HomeScreen() {
@@ -33,7 +32,7 @@ export default function HomeScreen() {
       <View style={styles.buttonsContainer}>
         <TextButton title="Start" onPress={() => setShowNameBoard(true)} />
         <TextButton title="Leaderboard" onPress={() => console.log('Leaderboard pressed')} />
-        <CatIdle width={180} height={180} style={styles.cat} />
+        <CatIdle width={200} height={200} style={styles.cat} />
       </View>
       {showSettings && (
         <SettingsBoard

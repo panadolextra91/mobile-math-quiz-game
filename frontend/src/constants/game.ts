@@ -17,8 +17,8 @@ export const GAME_CONSTANTS = {
   OBSTACLE_SPEED: 3000, // Duration in ms to cross screen
   CAT_POSITION_X: 20, // Cat's left position
   CAT_WIDTH: 180, // Cat's width
-  OBSTACLE_WIDTH: 180, // Obstacle width
-  OBSTACLE_HEIGHT: 180, // Obstacle height
+  OBSTACLE_WIDTH: 140, // Obstacle width
+  OBSTACLE_HEIGHT: 140, // Obstacle height
   OBSTACLE_Y: 25, // Same Y as cat (bottom: 25)
   BACKGROUND_ANIMATION_DURATION: 3000, // 3 seconds to slide one screen width
   OBSTACLE_SPAWN_DELAY: 2000, // 2 seconds before first obstacle spawns

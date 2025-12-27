@@ -5,11 +5,13 @@ import { GameSession } from '@/services/api';
 
 interface UseObstaclesProps {
   session: GameSession | null;
+  isGameOver?: boolean;
 }
 
-export function useObstacles({ session }: UseObstaclesProps) {
+export function useObstacles({ session, isGameOver = false }: UseObstaclesProps) {
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [hasCollision, setHasCollision] = useState(false);
+  const [collidedObstacleId, setCollidedObstacleId] = useState<string | null>(null);
   const obstacleIdCounter = useRef(0);
   const spawnedCount = useRef(0);
 
@@ -19,6 +21,7 @@ export function useObstacles({ session }: UseObstaclesProps) {
     : MAX_QUESTIONS_PER_DIFFICULTY.easy; // Default to easy if no session
 
   const spawnObstacle = useCallback(() => {
+    if (isGameOver) return; // Don't spawn new obstacles if game is over
     if (hasCollision) return; // Don't spawn new obstacles if collision occurred
     if (spawnedCount.current >= maxQuestions) {
       console.log(`Reached max questions (${maxQuestions}) for difficulty: ${session?.difficulty}`);
@@ -37,21 +40,29 @@ export function useObstacles({ session }: UseObstaclesProps) {
 
     spawnedCount.current++;
     setObstacles((prev) => [...prev, newObstacle]);
-  }, [hasCollision, maxQuestions, session?.difficulty]);
+  }, [hasCollision, maxQuestions, session?.difficulty, isGameOver]);
 
   const removeObstacle = useCallback((id: string) => {
     setObstacles((prev) => prev.filter((obs) => obs.id !== id));
   }, []);
 
   const handleCollision = useCallback((id: string) => {
+    if (isGameOver) return; // Don't handle collisions if game is over
     console.log('Collision detected with obstacle:', id);
     setHasCollision(true);
+    setCollidedObstacleId(id);
     // TODO: Handle collision (show question, reduce health, etc.)
     // Don't remove obstacle immediately - keep it visible in idle state
+  }, [isGameOver]);
+
+  const resetCollision = useCallback(() => {
+    setHasCollision(false);
+    // Keep collidedObstacleId so we can track which obstacle to remove
   }, []);
 
   // Continuous obstacle spawning until max is reached
   useEffect(() => {
+    if (isGameOver) return; // Don't spawn new obstacles if game is over
     if (hasCollision) return; // Don't spawn new obstacles if collision occurred
     if (spawnedCount.current >= maxQuestions) return; // Don't spawn if we've reached max
     if (!session) return; // Don't spawn if no session
@@ -63,7 +74,7 @@ export function useObstacles({ session }: UseObstaclesProps) {
 
     // Then spawn obstacles continuously with interval
     const spawnInterval = setInterval(() => {
-      if (spawnedCount.current >= maxQuestions || hasCollision) {
+      if (spawnedCount.current >= maxQuestions || hasCollision || isGameOver) {
         clearInterval(spawnInterval);
         return;
       }
@@ -74,23 +85,26 @@ export function useObstacles({ session }: UseObstaclesProps) {
       clearTimeout(initialTimer);
       clearInterval(spawnInterval);
     };
-  }, [spawnObstacle, hasCollision, maxQuestions, session]);
+  }, [spawnObstacle, hasCollision, maxQuestions, session, isGameOver]);
 
   // Reset spawned count when session changes
   useEffect(() => {
     spawnedCount.current = 0;
     setObstacles([]);
     setHasCollision(false);
+    setCollidedObstacleId(null);
   }, [session?.id]);
 
   return {
     obstacles,
     hasCollision,
+    collidedObstacleId,
     spawnedCount: spawnedCount.current,
     maxQuestions,
     spawnObstacle,
     removeObstacle,
     handleCollision,
+    resetCollision,
   };
 }
 
