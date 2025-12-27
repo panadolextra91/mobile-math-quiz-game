@@ -13,6 +13,7 @@ export { Obstacle } from './Obstacle';
 export { QuestionBox } from './QuestionBox';
 export { OptionBox } from './OptionBox';
 export { EndGameBoard } from './EndGameBoard';
+export { BoostSelection } from './BoostSelection';
 
 // Animations
 export * from './animations';

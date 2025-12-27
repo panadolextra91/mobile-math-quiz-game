@@ -1,7 +1,7 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { GameSession } from '@/services/api';
-import { GAME_CONSTANTS } from '@/src/constants/game';
+import { Fonts } from '@/constants/fonts';
 
 interface GameStatsProps {
   session: GameSession | null;
@@ -34,23 +34,11 @@ export function GameStats({ session }: GameStatsProps) {
             />
           )}
         </View>
-        {/* Boost frames row */}
-        <View style={styles.boostRow}>
-          <Image
-            source={require('@/assets/images/player_stats/boost_frame.png')}
-            style={styles.boostFrame}
-            contentFit="contain"
-          />
-          <Image
-            source={require('@/assets/images/player_stats/boost_frame.png')}
-            style={styles.boostFrame}
-            contentFit="contain"
-          />
-          <Image
-            source={require('@/assets/images/player_stats/boost_frame.png')}
-            style={styles.boostFrame}
-            contentFit="contain"
-          />
+        {/* Player name */}
+        <View style={styles.playerNameRow}>
+          {session && (
+            <Text style={styles.playerName}>{session.playerName}</Text>
+          )}
         </View>
       </View>
     </View>
@@ -81,15 +69,15 @@ const styles = StyleSheet.create({
     width: 150,
     height: 40,
   },
-  boostRow: {
-    flexDirection: 'row',
-    gap: 25,
+  playerNameRow: {
     marginBottom: 25,
     marginLeft: 5,
   },
-  boostFrame: {
-    width: 30,
-    height: 30,
+  playerName: {
+    fontFamily: Fonts.jersey10,
+    fontSize: 50,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

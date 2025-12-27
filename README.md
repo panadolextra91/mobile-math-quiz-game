@@ -131,6 +131,7 @@ Then press `i` for iOS or `a` for Android.
 - [ ] More question types
 - [ ] Adaptive difficulty
 - [ ] Social features (share achievements)
+- [ ] Unique player ID system to handle duplicate player names (currently players with identical names share the same stats record)
 
 ## License
 
